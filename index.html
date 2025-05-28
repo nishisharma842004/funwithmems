@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Meme Generator with Firebase</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <!-- Login/Signup Page -->
+    <div id="auth-page" class="page active">
+      <h1>Welcome to Meme Generator</h1>
+      <div class="auth-container">
+        <div id="auth-tabs">
+          <button class="auth-tab active" id="login-tab">Login</button>
+          <button class="auth-tab" id="signup-tab">Sign Up</button>
+        </div>
+        
+        <div id="login-form" class="auth-form active">
+          <div class="control-group">
+            <label for="login-email">Email:</label>
+            <input type="email" id="login-email" placeholder="Enter your email" required>
+          </div>
+          <div class="control-group">
+            <label for="login-password">Password:</label>
+            <input type="password" id="login-password" placeholder="Enter your password" required>
+          </div>
+          <button id="loginBtn" class="auth-btn">Login</button>
+          <p id="auth-status"></p>
+        </div>
+        
+        <div id="signup-form" class="auth-form">
+          <div class="control-group">
+            <label for="signup-email">Email:</label>
+            <input type="email" id="signup-email" placeholder="Enter your email" required>
+          </div>
+          <div class="control-group">
+            <label for="signup-password">Password:</label>
+            <input type="password" id="signup-password" placeholder="Create a password" required>
+          </div>
+          <div class="control-group">
+            <label for="signup-confirm">Confirm Password:</label>
+            <input type="password" id="signup-confirm" placeholder="Confirm your password" required>
+          </div>
+          <button id="signupBtn" class="auth-btn">Sign Up</button>
+          <p id="signup-status"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Meme Generator Page (hidden initially) -->
+    <div id="app-page" class="page">
+      <div class="header">
+        <h1>Meme Generator</h1>
+        <button id="logoutBtn">Logout</button>
+      </div>
+      
+      <div class="controls">
+        <div class="control-group">
+          <label for="imageUpload">Upload Image:</label>
+          <input type="file" id="imageUpload" accept="image/*" />
+        </div>
+        
+        <div class="control-group">
+          <label for="topText">Top Text:</label>
+          <input type="text" id="topText" placeholder="Top text" />
+        </div>
+        
+        <div class="control-group">
+          <label for="bottomText">Bottom Text:</label>
+          <input type="text" id="bottomText" placeholder="Bottom text" />
+        </div>
+        
+        <div class="control-group">
+          <label for="textColor">Text Color:</label>
+          <input type="color" id="textColor" value="#ffffff" />
+        </div>
+        
+        <div class="control-group">
+          <label for="fontSize">Font Size:</label>
+          <select id="fontSize">
+            <option value="20">20px</option>
+            <option value="30" selected>30px</option>
+            <option value="40">40px</option>
+            <option value="50">50px</option>
+          </select>
+        </div>
+        
+        <div class="control-group">
+          <label for="emojiPicker">Add Emoji:</label>
+          <select id="emojiPicker">
+            <option value="">--Choose Emoji--</option>
+            <option>😂</option>
+            <option>🔥</option>
+            <option>🤣</option>
+            <option>😍</option>
+            <option>🤔</option>
+            <option>🙌</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="canvas-container">
+        <canvas id="memeCanvas" width="700" height="400"></canvas>
+      </div>
+      
+      <div class="button-group">
+        <button id="generateBtn">Generate Meme</button>
+        <button id="shareBtn">Download Meme</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+      
+      <hr />
+      
+      <h2>Feedback</h2>
+      <textarea id="feedback" rows="3" placeholder="Write your feedback here..."></textarea>
+      <button id="submitFeedbackBtn">Submit Feedback</button>
+      
+      <div id="feedbackList"></div>
+    </div>
+  </div>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>
