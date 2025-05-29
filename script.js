@@ -56,6 +56,7 @@ const bottomTextInput = document.getElementById('bottomText');
 const textColorInput = document.getElementById('textColor');
 const fontSizeSelect = document.getElementById('fontSize');
 const emojiPicker = document.getElementById('emojiPicker');
+const stickerPicker = document.getElementById('stickerPicker');
 const generateBtn = document.getElementById('generateBtn');
 const shareBtn = document.getElementById('shareBtn');
 const resetBtn = document.getElementById('resetBtn');
@@ -79,9 +80,28 @@ let texts = {
 let draggingText = null;
 let dragOffset = { x: 0, y: 0 };
 
+// Sticker functionality
+let stickers = [];
+let selectedSticker = null;
+let isDraggingSticker = false;
+let dragStickerOffset = { x: 0, y: 0 };
+let animationFrame;
+let lastTimestamp = 0;
+const animatedStickers = [];
+
+// Sticker images
+const stickerImages = {
+  'thug-life': 'https://i.imgur.com/XWbpt2u.png',
+  'deal-with-it': 'https://i.imgur.com/3Q0yNIn.png',
+  'cool-emoji': '😎',
+  'fire': '🔥',
+  '100': '💯',
+  'mind-blown': '🤯',
+  'party-popper': '🎉'
+};
+
 // Initialize voice recognition
 function initVoiceRecognition() {
-  // Check for browser support
   if (!('webkitSpeechRecognition' in window)) {
     voiceBtn.disabled = true;
     voiceStatus.textContent = "Voice not supported";
@@ -121,12 +141,10 @@ function initVoiceRecognition() {
       }
     }
 
-    // Display interim results
     if (interimTranscript) {
       voiceTextPreview.textContent = interimTranscript;
     }
 
-    // Process final results
     if (finalTranscript) {
       voiceTextPreview.textContent = finalTranscript;
       processVoiceText(finalTranscript);
@@ -192,12 +210,10 @@ signupTab.addEventListener('click', () => {
 // Auth State Listener
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    // User is signed in
     authPage.classList.remove('active');
     appPage.classList.add('active');
     loadFeedbacks();
   } else {
-    // User is signed out
     authPage.classList.add('active');
     appPage.classList.remove('active');
     resetCanvas();
@@ -253,7 +269,6 @@ signupBtn.addEventListener('click', async (e) => {
     document.getElementById('signup-password').value = "";
     document.getElementById('signup-confirm').value = "";
     
-    // Switch to login tab after successful signup
     setTimeout(() => {
       loginTab.click();
       signupStatus.textContent = "";
@@ -299,6 +314,7 @@ function drawMeme() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
+  // Draw text
   ctx.textAlign = "center";
   ctx.fillStyle = textColorInput.value;
   ctx.strokeStyle = "black";
@@ -310,6 +326,31 @@ function drawMeme() {
     if (!text) return;
     ctx.strokeText(text, x, y);
     ctx.fillText(text, x, y);
+  });
+  
+  // Draw stickers
+  stickers.forEach(sticker => {
+    ctx.save();
+    ctx.translate(sticker.x, sticker.y);
+    ctx.rotate(sticker.rotation * Math.PI / 180);
+    ctx.scale(sticker.scale, sticker.scale);
+    
+    if (sticker.type === 'image') {
+      ctx.drawImage(
+        sticker.content, 
+        -sticker.width/2, 
+        -sticker.height/2, 
+        sticker.width, 
+        sticker.height
+      );
+    } else if (sticker.type === 'emoji') {
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = `${sticker.height}px Arial`;
+      ctx.fillText(sticker.content, 0, 0);
+    }
+    
+    ctx.restore();
   });
 }
 
@@ -333,13 +374,19 @@ function shareMeme() {
 }
 
 function resetCanvas() {
+  if (animationFrame) {
+    cancelAnimationFrame(animationFrame);
+    animationFrame = null;
+  }
+  animatedStickers.length = 0;
   image = new Image();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   topTextInput.value = "";
   bottomTextInput.value = "";
   texts.topText.text = "";
-  texts.bottomText.text = "";
+  texts.bottomText.bottomText = "";
   imageUpload.value = "";
+  stickers = [];
 }
 
 emojiPicker.addEventListener('change', () => {
@@ -357,26 +404,155 @@ emojiPicker.addEventListener('change', () => {
   generateMeme();
 });
 
+// Add sticker to canvas
+stickerPicker.addEventListener('change', () => {
+  const stickerType = stickerPicker.value;
+  if (!stickerType) return;
+  
+  if (stickerType === 'cool-emoji' || stickerType === 'fire' || 
+      stickerType === '100' || stickerType === 'mind-blown' || stickerType === 'party-popper') {
+    // For emoji stickers
+    addSticker({
+      type: 'emoji',
+      content: stickerImages[stickerType],
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      width: 50,
+      height: 50,
+      scale: 1,
+      rotation: 0
+    });
+  } else {
+    // For image stickers
+    const img = new Image();
+    img.onload = function() {
+      addSticker({
+        type: 'image',
+        content: img,
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        width: img.width > 150 ? 150 : img.width,
+        height: img.width > 150 ? (img.height * 150) / img.width : img.height,
+        scale: 1,
+        rotation: 0
+      });
+    };
+    img.src = stickerImages[stickerType];
+  }
+  
+  stickerPicker.value = "";
+});
+
+function addSticker(sticker) {
+  stickers.push(sticker);
+  
+  if (sticker.content === '🎉') {
+    sticker.animation = {
+      angle: 0,
+      scale: 1,
+      growing: true
+    };
+    animatedStickers.push(sticker);
+    startAnimation();
+  }
+  
+  drawMeme();
+}
+
+// Animation loop
+function startAnimation() {
+  if (animationFrame) return;
+  
+  function animate(timestamp) {
+    if (!lastTimestamp) lastTimestamp = timestamp;
+    const deltaTime = timestamp - lastTimestamp;
+    lastTimestamp = timestamp;
+    
+    animatedStickers.forEach(sticker => {
+      // Rotate
+      sticker.rotation = (sticker.rotation + (20 * deltaTime / 1000)) % 360;
+      
+      // Pulse scale
+      if (sticker.animation.growing) {
+        sticker.scale += 0.005 * deltaTime / 16;
+        if (sticker.scale >= 1.5) sticker.animation.growing = false;
+      } else {
+        sticker.scale -= 0.005 * deltaTime / 16;
+        if (sticker.scale <= 1) sticker.animation.growing = true;
+      }
+    });
+    
+    drawMeme();
+    animationFrame = requestAnimationFrame(animate);
+  }
+  
+  animationFrame = requestAnimationFrame(animate);
+}
+
 // Drag & Drop Text on Canvas
 canvas.addEventListener('mousedown', (e) => {
   const mousePos = getMousePos(e);
+  
+  // First check if we're clicking on text
   draggingText = getTextAtPos(mousePos);
   if (draggingText) {
     dragOffset.x = mousePos.x - draggingText.x;
     dragOffset.y = mousePos.y - draggingText.y;
+    return;
+  }
+  
+  // Then check if we're clicking on a sticker
+  for (let i = stickers.length - 1; i >= 0; i--) {
+    const sticker = stickers[i];
+    const stickerWidth = sticker.width * sticker.scale;
+    const stickerHeight = sticker.height * sticker.scale;
+    
+    if (mousePos.x >= sticker.x - stickerWidth/2 && 
+        mousePos.x <= sticker.x + stickerWidth/2 &&
+        mousePos.y >= sticker.y - stickerHeight/2 && 
+        mousePos.y <= sticker.y + stickerHeight/2) {
+      selectedSticker = sticker;
+      isDraggingSticker = true;
+      dragStickerOffset.x = mousePos.x - sticker.x;
+      dragStickerOffset.y = mousePos.y - sticker.y;
+      
+      // Move sticker to top of array (z-index)
+      stickers.splice(i, 1);
+      stickers.push(sticker);
+      
+      break;
+    }
   }
 });
 
 canvas.addEventListener('mousemove', (e) => {
-  if (!draggingText) return;
   const mousePos = getMousePos(e);
-  draggingText.x = mousePos.x - dragOffset.x;
-  draggingText.y = mousePos.y - dragOffset.y;
-  drawMeme();
+  
+  if (draggingText) {
+    draggingText.x = mousePos.x - dragOffset.x;
+    draggingText.y = mousePos.y - dragOffset.y;
+    drawMeme();
+    return;
+  }
+  
+  if (isDraggingSticker && selectedSticker) {
+    selectedSticker.x = mousePos.x - dragStickerOffset.x;
+    selectedSticker.y = mousePos.y - dragStickerOffset.y;
+    drawMeme();
+  }
 });
 
-canvas.addEventListener('mouseup', () => { draggingText = null; });
-canvas.addEventListener('mouseleave', () => { draggingText = null; });
+canvas.addEventListener('mouseup', () => { 
+  draggingText = null;
+  isDraggingSticker = false;
+  selectedSticker = null;
+});
+
+canvas.addEventListener('mouseleave', () => { 
+  draggingText = null;
+  isDraggingSticker = false;
+  selectedSticker = null;
+});
 
 function getMousePos(evt) {
   const rect = canvas.getBoundingClientRect();
