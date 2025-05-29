@@ -63,6 +63,14 @@ const feedbackInput = document.getElementById('feedback');
 const submitFeedbackBtn = document.getElementById('submitFeedbackBtn');
 const feedbackListDiv = document.getElementById('feedbackList');
 
+// Voice Recognition Elements
+let recognition;
+let isListening = false;
+const voiceBtn = document.getElementById('voiceBtn');
+const voiceStatus = document.getElementById('voiceStatus');
+const voiceTextPreview = document.getElementById('voiceTextPreview');
+const voiceTextPosition = document.getElementById('voiceTextPosition');
+
 let image = new Image();
 let texts = {
   topText: { text: "", x: canvas.width / 2, y: 50 },
@@ -70,6 +78,101 @@ let texts = {
 };
 let draggingText = null;
 let dragOffset = { x: 0, y: 0 };
+
+// Initialize voice recognition
+function initVoiceRecognition() {
+  // Check for browser support
+  if (!('webkitSpeechRecognition' in window)) {
+    voiceBtn.disabled = true;
+    voiceStatus.textContent = "Voice not supported";
+    return;
+  }
+
+  recognition = new webkitSpeechRecognition() || new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = true;
+
+  recognition.onstart = function() {
+    isListening = true;
+    voiceBtn.classList.add('listening');
+    voiceStatus.textContent = "Listening...";
+  };
+
+  recognition.onerror = function(event) {
+    console.error("Speech recognition error", event.error);
+    voiceStatus.textContent = "Error: " + event.error;
+    stopListening();
+  };
+
+  recognition.onend = function() {
+    stopListening();
+  };
+
+  recognition.onresult = function(event) {
+    let interimTranscript = '';
+    let finalTranscript = '';
+
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalTranscript += transcript;
+      } else {
+        interimTranscript += transcript;
+      }
+    }
+
+    // Display interim results
+    if (interimTranscript) {
+      voiceTextPreview.textContent = interimTranscript;
+    }
+
+    // Process final results
+    if (finalTranscript) {
+      voiceTextPreview.textContent = finalTranscript;
+      processVoiceText(finalTranscript);
+    }
+  };
+}
+
+function startListening() {
+  if (!recognition) {
+    initVoiceRecognition();
+  }
+  
+  try {
+    recognition.start();
+  } catch (error) {
+    console.error("Recognition start error:", error);
+    voiceStatus.textContent = "Error starting voice";
+  }
+}
+
+function stopListening() {
+  isListening = false;
+  voiceBtn.classList.remove('listening');
+  voiceStatus.textContent = "Start Speaking";
+}
+
+function processVoiceText(text) {
+  const position = voiceTextPosition.value;
+  
+  switch(position) {
+    case 'top':
+      topTextInput.value = text;
+      break;
+    case 'bottom':
+      bottomTextInput.value = text;
+      break;
+    case 'both':
+      const words = text.split(' ');
+      const half = Math.ceil(words.length / 2);
+      topTextInput.value = words.slice(0, half).join(' ');
+      bottomTextInput.value = words.slice(half).join(' ');
+      break;
+  }
+  
+  generateMeme();
+}
 
 // Auth Tab Switching
 loginTab.addEventListener('click', () => {
@@ -296,6 +399,17 @@ function getTextAtPos(pos) {
   return null;
 }
 
+// Voice Button Event Listener
+voiceBtn.addEventListener('click', function() {
+  if (isListening) {
+    recognition.stop();
+    stopListening();
+  } else {
+    voiceTextPreview.textContent = '';
+    startListening();
+  }
+});
+
 // Meme Generator Event Listeners
 generateBtn.addEventListener('click', generateMeme);
 shareBtn.addEventListener('click', shareMeme);
@@ -359,3 +473,8 @@ async function loadFeedbacks() {
     feedbackListDiv.innerHTML = "Error loading feedbacks: " + error.message;
   }
 }
+
+// Initialize voice recognition when app loads
+document.addEventListener('DOMContentLoaded', function() {
+  initVoiceRecognition();
+});
